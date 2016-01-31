@@ -7,6 +7,9 @@ var cheerio = require('cheerio');
 // 單一照片ID
 var illust_id = 53149284;
 
+// 預設資料夾名稱 images
+var filename = 'images/' ;
+
 var url = 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id='+ illust_id;
 request(url, function (error, response, body) {
 	if (!error && response.statusCode == 200) {
@@ -35,7 +38,6 @@ request(url, function (error, response, body) {
 		// request(img).pipe(fs.createWriteStream('images/'+name)); 
 		// request(imageurl).pipe(fs.createWriteStream('images/'+imagename)); 
 		// request(imageurljpg).pipe(fs.createWriteStream('images/'+imagenamejpg)); 
-		// fs.appendFile('./'+'img'+'.txt', "網址: " + imageurl + '\n' + "名子: " + imagename +'\n');
 		
 		// // 呼叫下載
 		download(name, img, imagename, imageurl, url, imagenamejpg, imageurljpg);
@@ -56,6 +58,7 @@ function onepage(url){
 			var newindex = wrapper.find('.newindex .newindex-inner .newindex-bg-container .cool-work .cool-work-main');
 			var imgcontainer = newindex.find('.img-container');
 			var img = imgcontainer.find('img').attr('src');
+			// 檔案名字讀取
 	    	var name = path.basename(img);
 
 	    	// 字串分割
@@ -71,7 +74,7 @@ function onepage(url){
 	   			download(name, img, imagename, imageurl, url, imagenamejpg, imageurljpg);
 	    	}, 1000);
 
-			// 呼叫arry處理
+			// 呼叫arry處理 此處開啟迴圈
 			// arrypage(wrapper);
 
 		}
@@ -80,32 +83,25 @@ function onepage(url){
 
 // 執行下載動作
 function download(name, img, imagename, imageurl, url, imagenamejpg, imageurljpg){
-	// var name = name;
-	// var img = img;
-	// var imagename= imagename;
-	// var imageurl= imageurl;
-	// var url= url;
-	// var imagenamejpg= imagenamejpg;
-	// var imageurljpg= imageurljpg;
 
 	async.series({
 	    a: function(callback){
-				request(img).pipe(fs.createWriteStream('images/'+name)); 
+				request(img).pipe(fs.createWriteStream(filename+name)); 
 				console.log('原始圖片來源: ', img); 
 				callback(); 
 	    },
 	    b: function(callback){
-				request(imageurl).pipe(fs.createWriteStream('images/'+imagename));
+				request(imageurl).pipe(fs.createWriteStream(filename+imagename));
 				console.log('放大圖片來源:', imageurl); 	
 				callback();
+	    },
+	    c: function(callback){
+				request(imageurljpg).pipe(fs.createWriteStream('images/'+ imagenamejpg), function(){
+					callback(); 
+				});
+				console.log('放大圖片來源jpg:', imageurljpg); 
+	    	   	callback();
 	    }
-	   //  c: function(callback){
-				// request(imageurljpg).pipe(fs.createWriteStream('images/'+ imagenamejpg), function(){
-				// 	callback(); 
-				// });
-				// console.log('放大圖片來源jpg:', imageurljpg); 
-	   //  	   	callback();
-	   //  }
 	},
 	function(err, results) {
 		if(err){
@@ -113,45 +109,21 @@ function download(name, img, imagename, imageurl, url, imagenamejpg, imageurljpg
 		}
 	});
 
-	// var a = async.queue(function (task, callback) {
-	// 		request(task.img).pipe(fs.createWriteStream('images/'+task.name), function(){
-	// 			callback(); 
-	// 		}); 
-	// 		console.log('原始圖片來源: ', task.img); 
-	// }, 2);
-	// a.push({name:name, img:img}, function (err) {
-	//     if(err){	    
-	//     	console.log('finished processing foo');
-	// 	}
-	// });
+				// request(img).pipe(fs.createWriteStream(filename+name)); 
+				// console.log('原始圖片來源: ', img); 
 
-	// var b = async.queue(function (task, callback) {
-	// 		request(task.imageurl).pipe(fs.createWriteStream('images/'+task.imagename), function(){
-	// 			callback();
-	// 		});
-	// 		console.log('放大圖片來源:', imageurl); 	
-	// }, 2);
-	// b.push({imagename:imagename, imageurl:imageurl}, function (err) {
-	//     if(err){	    
-	//     	console.log('finished processing foo');
-	// 	}
-	// });	
+				// request(imageurl).pipe(fs.createWriteStream(filename+imagename));
+				// console.log('放大圖片來源:', imageurl); 	
 
-	// var c = async.queue(function (task, callback) {
-	// 		request(task.imageurljpg).pipe(fs.createWriteStream('images/'+task.imagenamejpg), function(){
-	// 			callback();
-	// 		});
-	// 		console.log('放大圖片來源jpg:', task.imageurljpg); 
-	// }, 2);
-	// c.push({ imagenamejpg:imagenamejpg, imageurljpg:imageurljpg}, function (err) {
-	//     if(err){	    
-	//     	console.log('finished processing foo');
-	// 	}
-	// });
+				// request(imageurljpg).pipe(fs.createWriteStream('images/'+ imagenamejpg));
+				// console.log('放大圖片來源jpg:', imageurljpg); 
+
+	
+
+
+
 
 }
-
-
 
 // arry處理
 function arrypage(wrapper){
@@ -165,6 +137,3 @@ function arrypage(wrapper){
 			onepage(workurl);
 		};
 }
-
-
-
