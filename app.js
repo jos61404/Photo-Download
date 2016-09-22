@@ -114,12 +114,12 @@ var j = request.jar();
 // console.log('cookiesJoin', cookiesJoin);
 // var rcookie = request.cookie('p_ab_id=8; _ga=GA1.2.2071423881.1474355586; device_token=e7f20a7cb2122d886a6fd2c064fb36ff; a_type=0; is_sensei_service_user=1; login_ever=yes; PHPSESSID=14556077_7436532862f11da0c95adc3ebcf3e5b7; module_orders_mypage=%5B%7B%22name%22%3A%22hot_entries%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22everyone_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22sensei_courses%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22spotlight%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22featured_tags%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22contests%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22following_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22mypixiv_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22booth_follow_items%22%2C%22visible%22%3Atrue%7D%5D; ki_t=1474356283748%3B1474356283748%3B1474359976073%3B1%3B4; ki_r=; __lfcc=1; __utma=235335808.2071423881.1474355586.1474355636.1474359783.2; __utmb=235335808.2.10.1474359783; __utmc=235335808; __utmz=235335808.1474355636.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmv=235335808.|2=login%20ever=yes=1^3=plan=normal=1^5=gender=male=1^6=user_id=14556077=1');
 // var rcookie = request.cookie('PHPSESSID=14556077_bfc492913aeb855b26720d64380a07c5; expires=Thu, 20-Oct-2016 09:29:17 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
-var rcookie = request.cookie('PHPSESSID=16694242_026bdfc53325bf00d1b200fe91444ad9; expires=Thu, 20-Oct-2016 14:57:30 GMT; Max-Age=2592000; path=/; domain=.pixiv.net,device_token=015dc43c0dd1eed90f0c5d11d6bc269d; expires=Thu, 20-Oct-2016 14:57:30 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
-j.setCookie(rcookie, 'http://www.pixiv.net/member_illust.php?id=163551&type=all&p=2');
+var rcookie = request.cookie('PHPSESSID=16694242_38957e2eda3550dbee306d617fcb8711; expires=Sat, 22-Oct-2016 17:21:59 GMT; Max-Age=2592000; path=/; domain=.pixiv.net,device_token=1b738521549588a86accbd9a515a9982; expires=Sat, 22-Oct-2016 17:21:59 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
+j.setCookie(rcookie, 'http://www.pixiv.net/member_illust.php?id=163551');
 request({
-	url:'http://www.pixiv.net/member_illust.php?id=163551&type=all&p=2',
+	url:'http://www.pixiv.net/member_illust.php?id=163551',
 	headers: {
-		'Referer': 'http://www.pixiv.net/',
+		'Referer': 'http://www.pixiv.net/member_illust.php?id=163551',
 		'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
 	},
 	jar: j
@@ -139,7 +139,7 @@ request({
 	// var aHrefId = '56732041';
 	async.map(imageItems, function(data, cb) {
 		var aHrefId = $(data).find('a').attr('href').split('id=')[1];
-		console.log('aHref', aHrefId);
+		// console.log('aHref', aHrefId);
 
 		var imageUrl = 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id=' + aHrefId;
 		request({
@@ -153,61 +153,103 @@ request({
 		},function (error, response, body){
 			if (!error && response.statusCode == 200) {
 				$ = cheerio.load(body);
-				var illust = $('._illust_modal');
-				// console.log('illust', illust);
-				var imgUrl = illust.find('img').attr('data-src');
-				var imgName = illust.find('img').attr('alt');
-				console.log('imgUrl', imgUrl);
-				if (!imgUrl) {
-					return console.log('幹你娘');
-				}
-				var len = imgUrl.split('/');
-				var imgName = len[len.length-1];
-				// console.log('imgName', imgName);
-				var data = {
-					url: imgUrl,
-					name: imgName
-				};
-				cb(null, data);
+				var worksDisplay = $('.works_display a').attr('href');
+				if (worksDisplay) {
+					var worksDisplayId = worksDisplay.split('id=')[1];
+					console.log('worksDisplayId', worksDisplayId);
 
+					var imageUrl = 'http://www.pixiv.net/member_illust.php?mode=manga&illust_id=' + worksDisplayId;
+					request({
+						url: imageUrl,
+						headers: {
+							'Referer': 'http://www.pixiv.net/',
+							'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+							// 'cookies': cookies
+						},
+						jar: j
+					},function (error, response, body){
+						if (!error && response.statusCode == 200) {
+							$ = cheerio.load(body);
+							var main = $('#main');
+							var container = main.find('.item-container ');
+							// console.log('main 資料：', container.eq(1).html());
+							// console.log('main 數量：', container.length);
+							var imgDat = [];
+							for (var i = 0; i < container.length; i++) {
+								var imgUrl = container.eq(i).find('img').attr('data-src');
+								// console.log('imgUrl', imgUrl);
+								var len = imgUrl.split('/');
+								var imgName = len[len.length-1];
+								// console.log('imgName', imgName);
+								imgDat.push({
+									url: imgUrl,
+									name: imgName
+								});
+							}
+							cb(null, imgDat[0]);
+						}
+					});
+				} else {
+					var illust = $('._illust_modal');
+					// console.log('illust', illust);
+					var imgUrl = illust.find('img').attr('data-src');
+					var imgName = illust.find('img').attr('alt');
+					// console.log('worksDisplay 資料:', worksDisplay);
+					// console.log('aHref 資料:', aHrefId);
+					// console.log('imgUrl 資料:', imgUrl);
+
+					var len = imgUrl.split('/');
+					var imgName = len[len.length-1];
+					// console.log('imgName', imgName);
+					var data = {
+						url: imgUrl,
+						name: imgName
+					};
+					cb(null, data);
+				}
 			}
 		});
 	}, function(err, ret){
-		// console.log('ret', ret);
-		ret.forEach(function(retData){
+		console.log('ret', ret);
+		async.mapLimit(ret, 1, function(retData, fg){
+			setTimeout(function(){
+				console.log('retData.url', retData.url);
+				var down = request({
+					url: retData.url,
+					headers: {
+						'Referer': 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id=56732041',
+						'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+					},
+					jar: j
+				});
+				down.on('error', function(err){
+					console.log('err', err);
+				});
+				down.pipe(fs.createWriteStream(filename + retData.name));
 
-			var down = request({
-				url: retData.url,
-				headers: {
-					'Referer': 'http://www.pixiv.net/',
-					'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
-				},
-				jar: j
-			});
-			down.on('error', function(err){
-				console.log('err', err);
-			});
-			down.pipe(fs.createWriteStream(filename + retData.name));
+				// var download = wget.download(retData.url, filename + retData.name, {
+				// 	headers: {
+				// 		'Referer': 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id=56732041',
+				// 		'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
+				// 		'Host': 'i2.pixiv.net'
+				// 	},
+				// 	jar: j
+				// });
+				// download.on('error', function(err) {
+				//     console.log('err', err);
+				// });
+				// download.on('end', function(output) {
+				//     // console.log('output', output);
+				// });
+				// download.on('progress', function(progress) {
+				// 	// console.log('progress', progress);
+				//     // code to show progress bar
+				// });
 
-			// var download = wget.download(retData.url, filename + retData.name, {
-			// 	headers: {
-			// 		'Referer': 'http://www.pixiv.net/',
-			// 		'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
-			// 	},
-			// 	jar: j
-			// });
-			// download.on('error', function(err) {
-			//     console.log('err', err);
-			//
-			// });
-			// download.on('end', function(output) {
-			//     console.log('output', output);
-			// });
-			// download.on('progress', function(progress) {
-			// 	// console.log('progress', progress);
-			//     // code to show progress bar
-			// });
-
+				console.log('執行一次：');
+				return fg(null, null);
+			}, 2500);
+		}, function(err, grt){
 
 		});
 	});
