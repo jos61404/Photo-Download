@@ -4,6 +4,7 @@ var async = require('async');
 var request = require('request');
 var cheerio = require('cheerio');
 var wget = require('wget');
+var http = require('http');
 // 預設資料夾名稱 images
 var filename = 'images/';
 
@@ -106,7 +107,7 @@ var jar = request.jar();
 // console.log('cookiesJoin', cookiesJoin);
 // var rcookie = request.cookie('p_ab_id=8; _ga=GA1.2.2071423881.1474355586; device_token=e7f20a7cb2122d886a6fd2c064fb36ff; a_type=0; is_sensei_service_user=1; login_ever=yes; PHPSESSID=14556077_7436532862f11da0c95adc3ebcf3e5b7; module_orders_mypage=%5B%7B%22name%22%3A%22hot_entries%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22everyone_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22sensei_courses%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22spotlight%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22featured_tags%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22contests%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22following_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22mypixiv_new_illusts%22%2C%22visible%22%3Atrue%7D%2C%7B%22name%22%3A%22booth_follow_items%22%2C%22visible%22%3Atrue%7D%5D; ki_t=1474356283748%3B1474356283748%3B1474359976073%3B1%3B4; ki_r=; __lfcc=1; __utma=235335808.2071423881.1474355586.1474355636.1474359783.2; __utmb=235335808.2.10.1474359783; __utmc=235335808; __utmz=235335808.1474355636.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmv=235335808.|2=login%20ever=yes=1^3=plan=normal=1^5=gender=male=1^6=user_id=14556077=1');
 // var rcookie = request.cookie('PHPSESSID=14556077_bfc492913aeb855b26720d64380a07c5; expires=Thu, 20-Oct-2016 09:29:17 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
-var rcookie = request.cookie('PHPSESSID=16694242_974b0877e6a78c8c4394a4a2bc1b4f67; expires=Tue, 20-Dec-2016 01:21:19 GMT; Max-Age=2592000; path=/; domain=.pixiv.net; HttpOnly,device_token=c347c4c211c13b1e54865fc457450897; expires=Tue, 20-Dec-2016 01:21:19 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
+var rcookie = request.cookie('PHPSESSID=16694242_0df8dc83c444ad8749482cb011d6164c; expires=Sun, 25-Dec-2016 17:39:33 GMT; Max-Age=2592000; path=/; domain=.pixiv.net; HttpOnly,device_token=32bb1584795b09f3857d2707c1314b3e; expires=Sun, 25-Dec-2016 17:39:33 GMT; Max-Age=2592000; path=/; domain=.pixiv.net');
 jar.setCookie(rcookie, 'http://www.pixiv.net/member_illust.php?id=163551&type=all&p=2');
 request({
 	url:'http://www.pixiv.net/member_illust.php?id=163551&type=all&p=2',
@@ -134,75 +135,200 @@ request({
 		// console.log('aHref', aHrefId);
 
 		var imageUrl = 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id=' + aHrefId;
-		request({
-			url: imageUrl,
-			headers: {
-				'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-				'Referer': 'http://www.pixiv.net/',
-				'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
-				// 'cookies': cookies
-			},
-			jar: jar
-		},function (error, response, body){
-			if (!error && response.statusCode == 200) {
-				$ = cheerio.load(body);
-				var illust = $('._illust_modal');
-				// console.log('illust', illust);
-				var imgUrl = illust.find('img').attr('data-src');
-				var imgName = illust.find('img').attr('alt');
-				// console.log('imgUrl', imgUrl);
-				if (!imgUrl) {
-					// return console.log('幹你娘');
-					cb(null, false);
-				}else {
-					var len = imgUrl.split('/');
-					var imgName = len[len.length-1];
-					// console.log('imgName', imgName);
-					var data = {
-						url: imgUrl,
-						name: imgName
-					};
-					cb(null, data);
-				}
 
+		requestUrl(imageUrl);
 
+		function requestUrl(imageUrl, type) {
+			if(type === 'manga') {
+				imageUrl = 'http://www.pixiv.net/member_illust.php?mode=manga&illust_id=' + aHrefId;
 			}
-		});
+
+			request({
+				url: imageUrl,
+				headers: {
+					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+					'Referer': 'http://www.pixiv.net/',
+					'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+				},
+				jar: jar
+			},function (error, response, body){
+				if (!error && response.statusCode == 200) {
+					$ = cheerio.load(body);
+
+					if(type === 'manga') {
+						var mangaList = $('#main .manga .item-container');
+						// console.log('mangaList', mangaList.html());
+						var mangaArray = [];
+						for (var i = 0; i < mangaList.length; i++) {
+							var manga = mangaList.eq(i);
+							var mangaUrl = manga.find('img').attr('data-src');
+							var len = mangaUrl.split('/');
+							var imgName = len[len.length-1];
+							console.log('imgName', imgName);
+							// var mangaUrl = manga.pixiv.context.images[1];
+							// console.log('manga', mangaUrl);
+							mangaArray.push({
+								name: imgName,
+								url: mangaUrl
+							});
+						}
+						var man = {
+							type: 'manga',
+							mangaArray: mangaArray
+						};
+						return cb(null, man);
+					} else {
+						var illust = $('._illust_modal');
+						var imgUrl = illust.find('img').attr('data-src');
+						var imgName = illust.find('img').attr('alt');
+					}
+
+					if (!imgUrl) {
+						// console.log('imgUrl', imgUrl);
+						// return console.log('幹你娘');
+						requestUrl(imageUrl, 'manga');
+					} else {
+						var len = imgUrl.split('/');
+						var imgName = len[len.length-1];
+						// console.log('imgName', imgName);
+						var data = {
+							type: 'url',
+							url: imgUrl,
+							name: imgName
+						};
+						return cb(null, data);
+					}
+				}
+			});
+		}
+
+
 	}, function(err, ret){
 		// console.log('ret', ret);
-
-		return console.log('ret', ret);
-
-		ret.forEach(function(retData){
-			if (retData) {
-				// setTimeout(function(){
-					// var down = request.get({
-					// 	url: retData.url,
-					// 	headers: {
-					// 		'Referer': 'http://www.pixiv.net/',
-					// 		'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
-					// 		'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-					// 		'base64': 'base64',
-					// 		// 'Content-type': 'image/jpg',
-					// 	},
-					// 	jar: jar
-					// });
-
-					// // down.encoding('binary');
-					// down.on('error', function(err){
-					// 	console.log('err', err);
-					// });
-					// down.on('response', function(response) {
-					// 		console.log('---------------------------------');
-					// 		console.log(response.statusCode) // 200
-					// 		console.log(response.headers['content-type']) // 'image/png'
-					// 		down.pipe(fs.createWriteStream(filename + retData.name, 'binary'));
-					// 		console.log('下載：', filename + retData.name);
-					// 		console.log('---------------------------------');
-					//
-					// });
-				// }, 2000);
+		var urlDataArray = [];
+		for (var i = 0; i < ret.length; i++) {
+			if (ret[i].type === 'manga') {
+				for (var a = 0; a < ret[i].mangaArray.length; a++) {
+					var manga = ret[i].mangaArray[a];
+					urlDataArray.push({
+						url: manga.url,
+						name: manga.name
+					});
+				}
+			} else if (ret[i].type === 'url') {
+				urlDataArray.push({
+					url: ret[i].url,
+					name: ret[i].name
+				});
 			}
-		});
+		}
+
+		// console.log('urlDataArray', urlDataArray);
+		// return console.log('ret', ret);
+		imageDown(urlDataArray);
+
+		function imageDown(urlDataArray , time) {
+			var tm = time || 1000;
+			var d = 1;
+			var type = false;
+			async.mapLimit(urlDataArray, 1, function(urlData, ck){
+				if (urlData === null) {
+					return ck(null, null);
+				}
+				setTimeout(function(){
+					console.log('---------------------------------');
+					console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
+					console.log('圖片網址： ', urlData.url);
+					var down = request({
+						url: urlData.url,
+						headers: {
+							'Referer': 'http://www.pixiv.net/',
+							'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+							'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+							'Content-Type': 'image/jpeg',
+							'Accept-Ranges': 'bytes',
+							'Host': 'i2.pixiv.net',
+							'Referer': urlData.url,
+							'Accept-Encoding': 'gzip, deflate, sdch',
+							'Accept-Language': 'zh-TW,zh;q=0.8,en-US;q=0.6,en;q=0.4',
+							'Cache-Control': 'no-cache',
+							'Connection': 'keep-alive',
+							'Upgrade-Insecure-Requests': '1',
+						},
+						jar: jar,
+						encoding: 'binary'
+					});
+
+					// down.encoding('binary');
+					down.on('error', function(err){
+						type = true;
+						console.log('err', err);
+						return ck(null, {
+							name: urlData.name,
+							url: urlData.url});
+					});
+					down.on('response', function(response) {
+							console.log(response.statusCode) // 200
+							console.log(response.headers['content-type']) // 'image/png'
+							down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
+							// down.pipe(fs.createWriteStream(filename + urlData.name));
+							console.log('下載：', filename + urlData.name);
+							console.log('---------------------------------');
+							d++;
+							down.end();
+							return ck(null, null);
+					});
+				}, tm);
+			}, function(err, gty){
+				console.log('結束了～');
+				console.log('err', err);
+				console.log('gty', gty);
+				var ar = [];
+				for (var i = 0; i < gty.length; i++) {
+					gty[i];
+					if (gty[i] !== null) {
+						ar.push(gty[i]);
+					}
+				}
+				console.log('ar', ar);
+				if (type === true) {
+					return imageDown(ar, 2000);
+				}
+			});
+		}
+
+
+
+		// ret.forEach(function(retData){
+		// 	if (retData) {
+		// 		// setTimeout(function(){
+		// 			// var down = request.get({
+		// 			// 	url: retData.url,
+		// 			// 	headers: {
+		// 			// 		'Referer': 'http://www.pixiv.net/',
+		// 			// 		'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+		// 			// 		'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+		// 			// 		'base64': 'base64',
+		// 			// 		// 'Content-type': 'image/jpg',
+		// 			// 	},
+		// 			// 	jar: jar
+		// 			// });
+		//
+		// 			// // down.encoding('binary');
+		// 			// down.on('error', function(err){
+		// 			// 	console.log('err', err);
+		// 			// });
+		// 			// down.on('response', function(response) {
+		// 			// 		console.log('---------------------------------');
+		// 			// 		console.log(response.statusCode) // 200
+		// 			// 		console.log(response.headers['content-type']) // 'image/png'
+		// 			// 		down.pipe(fs.createWriteStream(filename + retData.name, 'binary'));
+		// 			// 		console.log('下載：', filename + retData.name);
+		// 			// 		console.log('---------------------------------');
+		// 			//
+		// 			// });
+		// 		// }, 2000);
+		// 	}
+		// });
 	});
 });
