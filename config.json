@@ -1,0 +1,10 @@
+{
+    "name": "photo",
+    "memberId": "",
+    "loginId": "",
+    "loginPassword": "",
+    "fileName": "images/",
+	"downloadTime": 1000,
+	"downloadTimeRetry": 2000,
+    "Cookie": null
+}
