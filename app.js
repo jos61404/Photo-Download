@@ -7,9 +7,12 @@ var jsonfile = require('jsonfile');
 var urlDataArray = [];
 var memberUrl = 'http://www.pixiv.net/member_illust.php?id=' + config.memberId;
 var jar = request.jar();
-
 var filename = config.fileName + config.memberId + '/';
+
 // 判斷有無資料夾
+if (!fs.existsSync(config.fileName)) {
+	fs.mkdirSync(config.fileName, 0777);
+}
 if (!fs.existsSync(filename)) {
 	fs.mkdirSync(filename, 0777);
 }
@@ -78,8 +81,10 @@ function memberImageList(url, cookie) {
 	request({
 		url: url,
 		headers: {
-			'Referer': 'http://www.pixiv.net/',
-			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+			'Accept': 'application/json, text/javascript, */*; q=0.01',
+			'Accept-Language': 'zh-TW,zh;q=0.8,en-US;q=0.6,en;q=0.4',
+			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+			'Referer': url,
 		},
 		jar: jar
 	}, function(err, res, body){
@@ -99,14 +104,13 @@ function memberImageList(url, cookie) {
 					url: imageUrl,
 					headers: {
 						'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-						'Referer': 'http://www.pixiv.net/',
 						'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
+						'Referer': 'http://www.pixiv.net/member_illust.php?id=' + config.memberId,
 					},
 					jar: jar
 				},function (error, response, body){
 					if (!error && response.statusCode == 200) {
 						$ = cheerio.load(body);
-
 						if(type === 'manga') {
 							var mangaList = $('#main .manga .item-container');
 							var mangaArray = [];
@@ -167,7 +171,7 @@ function memberImageList(url, cookie) {
 				}
 			}
 			$ = cheerio.load(body);
-			var next = $('.next').eq(0).find('a').attr('href');
+			var next = $('.column-order-menu .pager-container .next').find('a').attr('href');
 			console.log('數量 ： ', r);
 			if (next === undefined) {
 				console.log('下一頁網址 ： 最後一頁');
@@ -201,12 +205,9 @@ function imageDownload(urlDataArray , time) {
 				var down = request({
 					url: urlData.url,
 					headers: {
-						'Referer': 'http://www.pixiv.net/',
 						'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
 						'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-						'Content-Type': 'image/jpeg',
 						'Accept-Ranges': 'bytes',
-						'Host': 'i2.pixiv.net',
 						'Referer': urlData.url,
 						'Accept-Encoding': 'gzip, deflate, sdch',
 						'Accept-Language': 'zh-TW,zh;q=0.8,en-US;q=0.6,en;q=0.4',
@@ -221,6 +222,8 @@ function imageDownload(urlDataArray , time) {
 				down.on('error', function(err){
 					type = true;
 					console.log('錯誤： ', err);
+					console.log('狀態 ： ',response.statusCode);
+					console.log('---------------------------------');
 					return cb({
 						name: urlData.name,
 						url: urlData.url
