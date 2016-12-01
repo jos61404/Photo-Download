@@ -172,7 +172,7 @@ function memberImageList(url, cookie) {
 			}
 			$ = cheerio.load(body);
 			var next = $('.column-order-menu .pager-container .next').find('a').attr('href');
-			console.log('數量 ： ', r);
+			console.log('此頁面數量 ： ', r);
 			if (next === undefined) {
 				console.log('下一頁網址 ： 最後一頁');
 				console.log('總共數量： ', urlDataArray.length);
@@ -221,9 +221,8 @@ function imageDownload(urlDataArray , time) {
 
 				down.on('error', function(err){
 					type = true;
-					console.log('錯誤： ', err);
-					console.log('狀態 ： ',response.statusCode);
-					console.log('---------------------------------');
+					// console.log('錯誤： ', err);
+					// console.log('---------------------------------');
 					return cb({
 						name: urlData.name,
 						url: urlData.url
@@ -233,9 +232,9 @@ function imageDownload(urlDataArray , time) {
 					});
 				});
 				down.on('response', function(response) {
+					down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
 					console.log('路徑 ：', filename + urlData.name);
 					console.log('狀態 ： ',response.statusCode);
-					down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
 					console.log('---------------------------------');
 					d++;
 					return ck(null, null);
@@ -248,7 +247,6 @@ function imageDownload(urlDataArray , time) {
 			});
 		});
 	}, function(err, gty){
-		console.log('下載已結束～');
 		var ar = [];
 		for (var i = 0; i < gty.length; i++) {
 			gty[i];
@@ -259,5 +257,6 @@ function imageDownload(urlDataArray , time) {
 		if (type === true) {
 			return imageDownload(ar, config.downloadTimeRetry);
 		}
+		return console.log('下載已結束～');
 	});
 }
