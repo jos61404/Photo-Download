@@ -4,10 +4,20 @@ var request = require('request');
 var cheerio = require('cheerio');
 var config = require('./config');
 var jsonfile = require('jsonfile');
+var ora = require('ora');
+var spinner = new ora({
+	spinner: 'line',
+	color: 'white'
+});
+var imageDownloadStartTime;
+var memberImageListData = 1;
+var out = process.stdout;
 var urlDataArray = [];
 var memberUrl = 'http://www.pixiv.net/member_illust.php?id=' + config.memberId;
 var jar = request.jar();
 var filename = config.fileName + config.memberId + '/';
+
+console.log('畫師ID ：', config.memberId);
 
 // 判斷有無資料夾
 if (!fs.existsSync(config.fileName)) {
@@ -15,6 +25,10 @@ if (!fs.existsSync(config.fileName)) {
 }
 if (!fs.existsSync(filename)) {
 	fs.mkdirSync(filename, 0777);
+}
+
+if (fs.existsSync(config.fileName) && fs.existsSync(filename)) {
+	console.log('下載目錄： 已創建完成');
 }
 
 // 判斷有無 Cookie 沒有就請求在寫入
@@ -75,6 +89,7 @@ if (config.Cookie === null) {
 	memberImageList(memberUrl, rcookie);
 }
 
+
 // 圖片列表查詢
 function memberImageList(url, cookie) {
 	jar.setCookie(cookie, url);
@@ -90,6 +105,7 @@ function memberImageList(url, cookie) {
 	}, function(err, res, body){
 		$ = cheerio.load(body);
 		var imageItems = $('._image-items li');
+		spinner.start().text = '目前處理頁數： ' + memberImageListData;
 		async.map(imageItems, function(data, cb) {
 			var aHrefId = $(data).find('a').attr('href').split('id=')[1];
 			var imageUrl = 'http://www.pixiv.net/member_illust.php?mode=medium&illust_id=' + aHrefId;
@@ -177,14 +193,16 @@ function memberImageList(url, cookie) {
 			}
 			$ = cheerio.load(body);
 			var next = $('.column-order-menu .pager-container .next').find('a').attr('href');
-			console.log('此頁面數量 ： ', r);
 			if (next === undefined) {
-				console.log('下一頁網址 ： 最後一頁');
+				spinner.stop();
+				console.log('總共頁數： ' + memberImageListData);
 				console.log('總共數量： ', urlDataArray.length);
 				console.log('---------------------------------');
+				imageDownloadStartTime = new Date();
 				imageDownload(urlDataArray);
 			} else {
-				console.log('下一頁網址 ： ', next);
+				spinner.succeed().text = '目前處理頁數： ' + memberImageListData;
+				memberImageListData++;
 				memberImageList('http://www.pixiv.net/member_illust.php' + next, cookie);
 			}
 		});
@@ -200,11 +218,15 @@ function imageDownload(urlDataArray , time) {
 		if (urlData === null) {
 			return ck(null, null);
 		}
+
+		var retry = true;
+		var retryData = 1;
 		async.retry({
 			times: 100,
 			interval: config.downloadTimeRetry
 		}, function(cb, result) {
 			setTimeout(function(){
+				var startTime = Date.now();
 				var down = request({
 					url: urlData.url,
 					headers: {
@@ -222,28 +244,46 @@ function imageDownload(urlDataArray , time) {
 					encoding: 'binary'
 				});
 
-				down.on('error', function(err){
-					type = true;
-					// console.log('錯誤： ', err);
-					// console.log('---------------------------------');
-					return cb({
-						name: urlData.name,
-						url: urlData.url
-					}, {
-						name: urlData.name,
-						url: urlData.url
+				setTimeout(function() {
+					if (retry) {
+						console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
+						console.log('圖片網址： ', urlData.url);
+						console.log('路徑 ：', filename + urlData.name);
+						out.clearLine();
+						out.cursorTo(0);
+						out.write('下載狀態： 下載中...');
+					}
+
+					down.on('error', function(err){
+						type = true;
+						retry = false;
+						out.clearLine();
+						out.cursorTo(0);
+						out.write('下載狀態： 重試中...');
+						out.cursorTo(25);
+						out.write('第' + retryData + '次重試');
+						retryData++;
+						return cb({
+							name: urlData.name,
+							url: urlData.url
+						}, {
+							name: urlData.name,
+							url: urlData.url
+						});
 					});
-				});
-				down.on('response', function(response) {
-					console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
-					console.log('圖片網址： ', urlData.url);
-					down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
-					console.log('路徑 ：', filename + urlData.name);
-					console.log('狀態 ： ',response.statusCode);
-					console.log('---------------------------------');
-					d++;
-					return ck(null, null);
-				});
+					down.on('response', function(response) {
+						down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
+						var endTime = Date.now();
+						out.clearLine();
+						out.cursorTo(0);
+						out.write('下載狀態： 已完成');
+						console.log('');
+						console.log('下載時間 ： ' + (endTime - startTime) / 1000 + '秒。');
+						console.log('---------------------------------');
+						d++;
+						return ck(null, null);
+					});
+				}, 1);
 			}, tm);
 		}, function(err, result) {
 			ck(null, {
@@ -262,6 +302,9 @@ function imageDownload(urlDataArray , time) {
 		if (type === true) {
 			return imageDownload(ar, config.downloadTimeRetry);
 		}
+		var imageDownloadEndTime = new Date();
+		var timeData = new Date(imageDownloadEndTime - imageDownloadStartTime);
+		console.log('總共用時 ： ' + timeData.getMinutes() + '分 ' +timeData.getSeconds() + '秒');
 		return console.log('下載已結束～');
 	});
 }
