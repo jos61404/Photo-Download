@@ -104,6 +104,7 @@ function memberImageList(url, cookie) {
 					url: imageUrl,
 					headers: {
 						'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+						'Accept-Language': 'zh-TW,zh;q=0.8,en-US;q=0.6,en;q=0.4',
 						'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.89 Safari/537.36',
 						'Referer': 'http://www.pixiv.net/member_illust.php?id=' + config.memberId,
 					},
@@ -147,27 +148,31 @@ function memberImageList(url, cookie) {
 							};
 							return cb(null, data);
 						}
+					} else {
+						return cb(null, null);
 					}
 				});
 			}
 		}, function(err, ret){
 			var r = 0;
 			for (var i = 0; i < ret.length; i++) {
-				r++;
-				if (ret[i].type === 'manga') {
-					for (var a = 0; a < ret[i].mangaArray.length; a++) {
-						r++;
-						var manga = ret[i].mangaArray[a];
+				if (ret[i] !== null) {
+					r++;
+					if (ret[i].type === 'manga') {
+						for (var a = 0; a < ret[i].mangaArray.length; a++) {
+							r++;
+							var manga = ret[i].mangaArray[a];
+							urlDataArray.push({
+								url: manga.url,
+								name: manga.name
+							});
+						}
+					} else if (ret[i].type === 'url') {
 						urlDataArray.push({
-							url: manga.url,
-							name: manga.name
+							url: ret[i].url,
+							name: ret[i].name
 						});
 					}
-				} else if (ret[i].type === 'url') {
-					urlDataArray.push({
-						url: ret[i].url,
-						name: ret[i].name
-					});
 				}
 			}
 			$ = cheerio.load(body);
@@ -200,8 +205,6 @@ function imageDownload(urlDataArray , time) {
 			interval: config.downloadTimeRetry
 		}, function(cb, result) {
 			setTimeout(function(){
-				console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
-				console.log('圖片網址： ', urlData.url);
 				var down = request({
 					url: urlData.url,
 					headers: {
@@ -232,6 +235,8 @@ function imageDownload(urlDataArray , time) {
 					});
 				});
 				down.on('response', function(response) {
+					console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
+					console.log('圖片網址： ', urlData.url);
 					down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
 					console.log('路徑 ：', filename + urlData.name);
 					console.log('狀態 ： ',response.statusCode);
