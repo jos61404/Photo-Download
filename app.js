@@ -11,6 +11,7 @@ var spinner = new ora({
 });
 var imageDownloadStartTime;
 var memberImageListData = 1;
+var viewType = config.viewType;
 var out = process.stdout;
 var urlDataArray = [];
 var memberUrl = 'http://www.pixiv.net/member_illust.php?id=' + config.memberId;
@@ -194,7 +195,7 @@ function memberImageList(url, cookie) {
 			$ = cheerio.load(body);
 			var next = $('.column-order-menu .pager-container .next').find('a').attr('href');
 			if (next === undefined) {
-				spinner.stop();
+				spinner.succeed();
 				console.log('總共頁數： ' + memberImageListData);
 				console.log('總共數量： ', urlDataArray.length);
 				console.log('---------------------------------');
@@ -246,22 +247,28 @@ function imageDownload(urlDataArray , time) {
 
 				setTimeout(function() {
 					if (retry) {
-						console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
-						console.log('圖片網址： ', urlData.url);
-						console.log('路徑 ：', filename + urlData.name);
-						out.clearLine();
-						out.cursorTo(0);
-						out.write('下載狀態： 下載中...');
+						if (viewType) {
+							spinner.start().text = '剩餘數量： ' + (urlDataArray.length - d) + ' | 檔案名稱 ：' + urlData.name + ' | 下載中...';
+						} else {
+							console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
+							console.log('圖片網址： ', urlData.url);
+							console.log('路徑 ：', filename);
+							console.log('檔案名稱 ：', urlData.name);
+							spinner.start().text = '下載狀態： 下載中...';
+						}
 					}
 
 					down.on('error', function(err){
+						if (!type) {
+							spinner.fail();
+						}
+						if (viewType) {
+							spinner.start().text = '下載狀態： 重試中...   第' + retryData + '次重試';
+						} else {
+							spinner.start().text = '下載狀態： 重試中...   第' + retryData + '次重試';
+						}
 						type = true;
 						retry = false;
-						out.clearLine();
-						out.cursorTo(0);
-						out.write('下載狀態： 重試中...');
-						out.cursorTo(25);
-						out.write('第' + retryData + '次重試');
 						retryData++;
 						return cb({
 							name: urlData.name,
@@ -276,10 +283,18 @@ function imageDownload(urlDataArray , time) {
 						var endTime = Date.now();
 						out.clearLine();
 						out.cursorTo(0);
-						out.write('下載狀態： 已完成');
-						console.log('');
-						console.log('下載時間 ： ' + (endTime - startTime) / 1000 + '秒。');
-						console.log('---------------------------------');
+						if (!retry) {
+							spinner.succeed();
+						}
+						if (viewType) {
+							spinner.start().text = '剩餘數量： ' + (urlDataArray.length - d) + ' | 檔案名稱：' + urlData.name + ' | 下載時間 ： ' + (endTime - startTime) / 1000 + '秒 | 下載完成';
+							spinner.succeed();
+						} else {
+							console.log('下載時間 ： ' + (endTime - startTime) / 1000 + '秒。');
+							spinner.start().text = '下載狀態： 已完成';
+							spinner.succeed();
+						}
+						console.log('-------------------------------------------------------------------------------------------');
 						d++;
 						return ck(null, null);
 					});
@@ -302,9 +317,9 @@ function imageDownload(urlDataArray , time) {
 		if (type === true) {
 			return imageDownload(ar, config.downloadTimeRetry);
 		}
-		var imageDownloadEndTime = new Date();
-		var timeData = new Date(imageDownloadEndTime - imageDownloadStartTime);
-		console.log('總共用時 ： ' + timeData.getMinutes() + '分 ' +timeData.getSeconds() + '秒');
+		// var imageDownloadEndTime = new Date();
+		// var timeData = new Date(imageDownloadEndTime - imageDownloadStartTime);
+		// console.log('總共用時 ： ' + timeData.getMinutes() + '分 ' +timeData.getSeconds() + '秒');
 		return console.log('下載已結束～');
 	});
 }
