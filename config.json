@@ -7,5 +7,5 @@
 	"viewType": true,
 	"downloadTime": 1000,
 	"downloadTimeRetry": 2000,
-	"Cookie": ""
+	"Cookie": null
 }
