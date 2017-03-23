@@ -7,7 +7,6 @@ var viewType = config.viewType;
 var memberId = process.env.NODE_ENV || config.memberId;
 var filename = config.fileName + memberId + '/';
 var jar = request.jar();
-var out = process.stdout;
 
 module.exports = {
 	imageDownload: (urlDataArray, cookie, spinner) => {
@@ -88,8 +87,6 @@ module.exports = {
 						down.on('response', (response) => {
 							down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
 							var endTime = Date.now();
-							out.clearLine();
-							out.cursorTo(0);
 							if (!retry) {
 								spinner.succeed();
 							}

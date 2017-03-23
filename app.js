@@ -20,7 +20,7 @@ run();
 
 async function run(){
 	// 判斷有無Cookie
-	var cookie = await require('./data/cookie').findCookie();
+	var cookie = await require('./data/cookie').findCookie(spinner);
 
 	// 解析頁數網址
 	var pageList = await require('./data/page').pageList(memberUrl, cookie, spinner);

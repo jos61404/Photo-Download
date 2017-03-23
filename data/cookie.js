@@ -4,8 +4,9 @@ var jsonfile = require('jsonfile');
 var cheerio = require('cheerio');
 var config = require('../config');
 module.exports = {
-	findCookie: () => {
+	findCookie: (spinner) => {
 		return new Promise((resolve, reject) => {
+			spinner.start().text = 'cookie確認 --- 處理中';
 			if (cookieData == null) {
 				request('https://accounts.pixiv.net/login?lang=zh_tw&source=pc&view_type=page&ref=wwwtop_accounts_index', (error, response, body) => {
 					if (!error && response.statusCode == 200) {
@@ -51,12 +52,16 @@ module.exports = {
 							var cookiesJoin = cookies.join();
 							jsonfile.writeFileSync('Cookie.json', cookiesJoin);
 							var rcookie = request.cookie(cookiesJoin);
+							spinner.start().text = 'cookie確認 --- 完成 --- 已請求寫入';
+							spinner.succeed();
 							return resolve(rcookie);
 						});
 					}
 				});
 			} else {
 				var rcookie = request.cookie(cookieData);
+				spinner.start().text = 'cookie確認 --- 完成 --- 檔案已存在';
+				spinner.succeed();
 				return resolve(rcookie);
 			}
 		});
