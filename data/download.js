@@ -1,129 +1,111 @@
-var request = require('request');
-var cheerio = require('cheerio');
-var async = require('async');
-var fs = require('fs');
-var config = require('../config');
-var viewType = config.viewType;
-var memberId = process.env.NODE_ENV || config.memberId;
-var filename = config.fileName + memberId + '/';
-var jar = request.jar();
+let debug = require('debug')('debug:data:download');
+let async = require('async');
+let puppeteer = require('./default_puppeteer');
+let _ = require('lodash');
+let fs = require('fs');
+const filename = `${process.env.fileName}/${process.env.memberId}/`;
+let spinner = require('./ora');
 
-module.exports = {
-	imageDownload: (urlDataArray, cookie, spinner) => {
-		return new Promise((resolve, reject) => {
-			var tm = config.downloadTime;
-			var d = 0;
-			var type = false;
-			async.mapLimit(urlDataArray, 1, (urlData, ck) => {
-				if (urlData === null) {
-					return ck(null, null);
-				}
+let byteFormatter = size => {
+	let result
+	switch (true) {
+		case size === null || size === '' || isNaN(size):
+			result = '-'
+			break
+		case size >= 0 && size < 1024:
+			result = size + ' B'
+			break
+		case size >= 1024 && size < Math.pow(1024, 2):
+			result = Math.round((size / 1024) * 100) / 100 + ' K'
+			break
 
-				if (fs.existsSync(filename + urlData.name)) {
-					d++;
-					spinner.start().text = '剩餘數量： ' + (urlDataArray.length - d) + ' | 檔案名稱：' + urlData.name + ' | 檔案已存在';
-					spinner.succeed();
-					return ck(null, null);
-				}
-
-				var retry = true;
-				var retryData = 1;
-				async.retry({
-					times: 100,
-					interval: config.downloadTimeRetry
-				}, (cb, result) => {
-					setTimeout(() => {
-						var startTime = Date.now();
-						var down = request({
-							url: urlData.url,
-							headers: {
-								'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
-								'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-								'Accept-Ranges': 'bytes',
-								'Referer': urlData.url,
-								'Accept-Encoding': 'gzip, deflate, sdch',
-								'Accept-Language': 'zh-TW,zh;q=0.8,en-US;q=0.6,en;q=0.4',
-								'Cache-Control': 'no-cache',
-								'Connection': 'keep-alive',
-								'Upgrade-Insecure-Requests': '1'
-							},
-							jar: jar,
-							encoding: 'binary'
-						});
-
-						if (retry) {
-							if (viewType) {
-								spinner.start().text = '剩餘數量： ' + (urlDataArray.length - d) + ' | 檔案名稱 ：' + urlData.name + ' | 下載中...';
-							} else {
-								console.log('總共： ' + urlDataArray.length + ' 目前： ' + d);
-								console.log('圖片網址： ', urlData.url);
-								console.log('路徑 ：', filename);
-								console.log('檔案名稱 ：', urlData.name);
-								spinner.start().text = '下載狀態： 下載中...';
-							}
-						}
-
-						down.on('error', (err) => {
-							if (!type) {
-								spinner.fail();
-							}
-							if (viewType) {
-								spinner.start().text = '下載狀態： 重試中...   第' + retryData + '次重試';
-							} else {
-								spinner.start().text = '下載狀態： 重試中...   第' + retryData + '次重試';
-							}
-							type = true;
-							retry = false;
-							retryData++;
-							return cb({
-								name: urlData.name,
-								url: urlData.url
-							}, {
-								name: urlData.name,
-								url: urlData.url
-							});
-						});
-
-						down.on('response', (response) => {
-							down.pipe(fs.createWriteStream(filename + urlData.name, 'binary'));
-							var endTime = Date.now();
-							if (!retry) {
-								spinner.succeed();
-							}
-							if (viewType) {
-								spinner.start().text = '剩餘數量： ' + (urlDataArray.length - d) + ' | 檔案名稱：' + urlData.name + ' | 下載時間 ： ' + (endTime - startTime) / 1000 + '秒 | 下載完成';
-								spinner.succeed();
-							} else {
-								console.log('下載時間 ： ' + (endTime - startTime) / 1000 + '秒。');
-								spinner.start().text = '下載狀態： 已完成';
-								spinner.succeed();
-							}
-							console.log('-------------------------------------------------------------------------------------------');
-							d++;
-							return ck(null, null);
-						});
-
-					}, tm);
-				}, (err, result) => {
-					ck(null, {
-						name: urlData.name,
-						url: urlData.url
-					});
-				});
-			}, (err, gty) => {
-				var ar = [];
-				for (var i = 0; i < gty.length; i++) {
-					gty[i];
-					if (gty[i] !== null) {
-						ar.push(gty[i]);
-					}
-				}
-				if (type === true) {
-					console.log('資料：', ar);
-					return resolve('下載未完成');
-				}
-				return resolve('下載已結束～');
-			});
-		});
+		case size >= Math.pow(1024, 2) && size < Math.pow(1024, 3):
+			result = Math.round((size / Math.pow(1024, 2)) * 100) / 100 + ' M'
+			break
+		case size >= Math.pow(1024, 3) && size < Math.pow(1024, 4):
+			result = Math.round((size / Math.pow(1024, 3)) * 100) / 100 + ' G'
+			break
+		default:
+			result = Math.round((size / Math.pow(1024, 4)) * 100) / 100 + ' T'
 	}
+	return result
+}
+
+module.exports = (url, page_i) => {
+	return new Promise((resolve, reject) => {
+		let page = puppeteer.pageArray()[page_i];
+		spinner.start().text = `${process.env.spinnerText} 網址： ${url} 開始下載檔案... `;
+
+		// 取得檔案名稱
+		let urls = url.split('/');
+		let imageName = urls[urls.length - 1];
+
+		// 回傳狀態資料
+		let obj = {
+			status: '處理中...',
+			url: url,
+			name: imageName
+		}
+
+		// 判斷檔案是否存在
+		if (fs.existsSync(`${filename}/${imageName}`)) {
+			obj.status = '檔案已存在'
+			spinner.start().text = `序列 ： ${process.env.pageImages}   狀態： ${obj.status} 檔案位置： ${filename + imageName} 網址： ${url} `;
+			spinner.succeed();
+			return resolve(obj);
+		}
+
+		async.retry({
+			times: 100,
+			interval: 10
+		}, async (cb) => {
+			try {
+				// // 下載方式 2
+				// 	let responses = null;
+				// 	await page.on('response', async resp => {
+				// 		if (!!~resp.url().indexOf('pximg') == true) {
+				// 			responses = resp;
+				// 		}
+				// 	});
+				// 	await page.on('load', async () => {
+				// 		if (responses != null && responses.url().toString() == url.toString()) {
+				// 			const headers = await responses.headers();
+				// 			const buffer = await responses.buffer();
+				// 			await fs.writeFileSync(filename + imageName, buffer);
+				// 			obj.status = '已下載完成'
+				// 			obj.size = byteFormatter(headers['content-length'])
+				// 			spinner.start().text = `下載方式 ： 2 狀態： ${obj.status} 大小： ${obj.size} 位置： ${filename + imageName} 網址： ${url} `;
+				// 			spinner.succeed();
+				// 			return resolve(obj);
+				// 		}
+				// 	});
+
+				// 加大限制
+				await page._client.send('Network.enable', {
+					maxResourceBufferSize: 1024 * 1204 * 100,
+					maxTotalBufferSize: 1024 * 1204 * 200,
+				})
+
+				let image_page = await page.goto(url, {
+					waitUntil: 'networkidle2'
+				});
+
+				const buffer = await image_page.buffer();
+				await fs.writeFileSync(filename + imageName, await buffer, 'binary');
+				obj.status = '已下載完成'
+				obj.size = byteFormatter(Buffer.byteLength(buffer, 'binary'))
+				spinner.start().text = `序列 ： ${process.env.pageImages}   狀態： ${obj.status} 大小： ${obj.size} 位置： ${filename + imageName} 網址： ${url} `;
+				spinner.succeed();
+				return resolve(obj);
+			} catch (error) {
+				debug('下載錯誤', error);
+				return cb(error);
+			}
+		}, (err, ret) => {
+			obj.status = '下載失敗'
+			spinner.start().text = `序列 ： ${process.env.pageImages}   狀態： ${obj.status} 檔案位置： ${filename + imageName} 網址： ${url} `;
+			spinner.succeed();
+			return resolve(obj);
+		})
+	});
 };
