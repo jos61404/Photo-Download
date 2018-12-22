@@ -1,38 +1,42 @@
-var config = require('./config');
-var memberId = process.env.NODE_ENV || config.memberId;
-var memberUrl = 'http://www.pixiv.net/member_illust.php?id=' + memberId;
-var ora = require('ora');
-var spinner = new ora({
-	spinner: 'line',
-	color: 'white'
-});
+let debug = require('debug')('debug:app');
+let fs = require('fs');
+let moment = require('moment');
 
-if (memberId === '' || memberId === undefined) {
-	return console.log('請輸入畫師ＩＤ，可用NODE_ENV=ID');
-} else {
-	console.log('畫師ID ：', memberId);
-}
+let obj = {
+	default: require('./data/default'),
+	default_puppeteer: require('./data/default_puppeteer'),
+	login: require('./data/login'),
+	page: require('./data/page'),
+	default: require('./data/default'),
+	works: require('./data/works'),
+	image: require('./data/image'),
+	download: require('./data/download'),
+};
 
-// 判斷有無資料夾
-require('./data/findfile');
+(async () => {
+	try {
+		// 資料初始化
+		await obj.default();
 
-run();
+		// 初始化瀏覽器
+		await obj.default_puppeteer.init();
+		let puppeteer_browser = await obj.default_puppeteer.browser();
+		let puppeteer_pageArray = await obj.default_puppeteer.pageArray();
+		await puppeteer_pageArray[0].goto('https://www.pixiv.net', {
+			waitUntil: 'networkidle2'
+		});
 
-async function run(){
-	// 判斷有無Cookie
-	var cookie = await require('./data/cookie').findCookie(spinner);
+		// 啟動登入
+		await obj.login();
 
-	// 解析頁數網址
-	var pageList = await require('./data/page').pageList(memberUrl, cookie, spinner);
+		// 解析頁面並下載
+		let pageList = await obj.page();
 
-	// 解析作品網址
-	var worksList = await require('./data/works').worksList(pageList, cookie, spinner);
+		// 儲存下載資訊
+		fs.writeFileSync(`log/${moment().format('YYYYMMDD_HHmmss')}.json`, JSON.stringify(pageList), 'utf8');
 
-	// 解析圖片原始地址
-	var imageList = await require('./data/image').imageList(worksList, cookie, spinner);
-
-	// 開始下載圖片
-	var download = await require('./data/download').imageDownload(imageList, cookie, spinner);
-	console.log('檔案數量', imageList.length);
-	console.log(download);
-}
+		return await puppeteer_browser.close();
+	} catch (error) {
+		return debug('錯誤訊息 ：', error);
+	}
+})()
